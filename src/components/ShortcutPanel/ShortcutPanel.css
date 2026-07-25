@@ -1,0 +1,359 @@
+/* ── Panel container ──────────────────────────────────────────────────────── */
+.shortcut-panel {
+  width: var(--sidebar-width);
+  height: 100%;
+  background: var(--bg-tertiary);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-md);
+  position: relative;
+}
+
+/* ── Classify layout ─────────────────────────────────────────────────────── */
+.classify-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  gap: var(--space-sm);
+}
+
+.shortcut-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.shortcut-count {
+  font-size: var(--font-size-xs);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  font-weight: 500;
+}
+
+/* ── Shortcut list (scrollable) ──────────────────────────────────────────── */
+.shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  overflow-y: auto;
+  flex: 1;
+  /* thin scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-subtle) transparent;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+  min-height: 44px;
+}
+.shortcut-item:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-accent);
+  transform: translateY(-1px);
+}
+.shortcut-item.active {
+  background: var(--accent-primary);
+  border-color: transparent;
+  transform: scale(0.97);
+}
+
+.shortcut-item-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 1;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.shortcut-key {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  background: var(--bg-primary);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-accent);
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: center;
+  border: 1px solid var(--border-subtle);
+}
+.shortcut-item.active .shortcut-key {
+  color: var(--bg-primary);
+  background: white;
+  border-color: transparent;
+}
+
+.shortcut-dest {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shortcut-item.active .shortcut-dest {
+  color: rgba(255,255,255,0.85);
+}
+
+/* Delete (×) button on shortcut item */
+.shortcut-delete-btn {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity var(--transition-fast), background var(--transition-fast);
+  flex-shrink: 0;
+}
+.shortcut-delete-btn.visible {
+  opacity: 1;
+}
+.shortcut-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* Empty state */
+.shortcut-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xl) var(--space-md);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+.shortcut-empty-sub {
+  font-size: var(--font-size-xs);
+  opacity: 0.6;
+}
+
+/* ── Add shortcut button ─────────────────────────────────────────────────── */
+.add-shortcut-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  width: 100%;
+  padding: var(--space-sm);
+  background: transparent;
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+.add-shortcut-btn:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.05);
+}
+.add-shortcut-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.add-shortcut-plus {
+  font-size: 1.1rem;
+  font-weight: 300;
+}
+
+/* ── Inline add-shortcut form ────────────────────────────────────────────── */
+.add-shortcut-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  flex-shrink: 0;
+  animation: slideInUp 0.15s ease;
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.add-shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Key capture button */
+.key-capture-btn {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  padding: var(--space-sm) var(--space-sm);
+  min-width: 56px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border-medium);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+  flex-shrink: 0;
+}
+.key-capture-btn.listening {
+  border-color: var(--accent-secondary);
+  color: var(--accent-secondary);
+  background: rgba(139, 92, 246, 0.1);
+  animation: pulse 0.8s ease-in-out infinite;
+}
+.key-capture-btn.captured {
+  border-color: var(--success);
+  color: var(--success);
+  background: rgba(16, 185, 129, 0.1);
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
+  50%       { box-shadow: 0 0 0 4px rgba(139, 92, 246, 0); }
+}
+
+.add-shortcut-arrow {
+  color: var(--text-muted);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+/* Destination input row (input + folder-picker button) */
+.add-shortcut-dest-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex: 1;
+  min-width: 0;
+}
+
+.add-shortcut-dest {
+  flex: 1;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  outline: none;
+  transition: border-color var(--transition-fast);
+  min-width: 0;
+}
+.add-shortcut-dest:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+.add-shortcut-dest::placeholder {
+  color: var(--text-muted);
+  font-family: var(--font-family);
+}
+
+/* Folder picker button (📂) */
+.folder-pick-btn {
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 36px;
+}
+.folder-pick-btn:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.08);
+  transform: scale(1.05);
+}
+.folder-pick-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.folder-pick-btn.loading {
+  animation: spin 1s linear infinite;
+}
+
+/* Error message */
+.add-shortcut-error {
+  font-size: var(--font-size-xs);
+  color: var(--danger);
+  margin: 0;
+  padding-left: var(--space-xs);
+}
+
+/* Action buttons row */
+.add-shortcut-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+.add-shortcut-cancel {
+  font-size: var(--font-size-sm);
+  padding: var(--space-xs) var(--space-sm);
+}
+.add-shortcut-save {
+  font-size: var(--font-size-sm);
+  padding: var(--space-xs) var(--space-md);
+}
+
+/* ── Binary mode ─────────────────────────────────────────────────────────── */
+.binary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  height: 100%;
+  justify-content: center;
+}
+.binary-btn {
+  padding: var(--space-xl);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  border-radius: var(--radius-lg);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.panel-footer {
+  margin-top: auto;
+  padding-top: var(--space-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.mode-indicator {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}

@@ -1,0 +1,159 @@
+.directory-picker-container {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  position: relative;
+}
+
+/* ── Loading overlay ─────────────────────────────────────────────────────── */
+.picker-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 0, 43, 0.85);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn 0.2s ease;
+}
+
+.picker-loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2xl) var(--space-xl);
+  box-shadow: var(--shadow-glow), var(--shadow-lg);
+  min-width: 260px;
+}
+
+.picker-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--border-subtle);
+  border-top-color: var(--accent-primary);
+  border-right-color: var(--accent-secondary);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.picker-loading-msg {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin: 0;
+  text-align: center;
+}
+
+/* ── Card ────────────────────────────────────────────────────────────────── */
+.picker-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2xl);
+  text-align: center;
+  width: 90%;
+  max-width: 620px;
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
+}
+
+.picker-title {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: var(--space-xs);
+  letter-spacing: -0.02em;
+}
+
+.picker-subtitle {
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-md);
+  font-size: var(--font-size-sm);
+}
+
+/* ── Drop zone ───────────────────────────────────────────────────────────── */
+.drop-zone {
+  border: 2px dashed var(--border-accent);
+  border-radius: var(--radius-md);
+  padding: var(--space-2xl);
+  margin: var(--space-lg) 0;
+  background: rgba(157, 78, 221, 0.04);
+  transition: all var(--transition-fast);
+}
+.drop-zone:hover {
+  background: rgba(157, 78, 221, 0.09);
+  border-color: var(--accent-primary);
+}
+
+/* ── Recent directories ──────────────────────────────────────────────────── */
+.recent-dirs {
+  margin-top: var(--space-lg);
+  text-align: left;
+}
+.recent-title {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: var(--space-sm);
+}
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-subtle) transparent;
+}
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--bg-secondary);
+  border: 1px solid transparent;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+  width: 100%;
+}
+.recent-item:hover:not(:disabled) {
+  background: var(--bg-elevated);
+  border-color: var(--border-accent);
+  transform: translateX(3px);
+}
+.recent-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.recent-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.recent-path {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+.recent-fullpath {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}

@@ -1,0 +1,55 @@
+.collision-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  width: 90%;
+  max-width: 500px;
+  box-shadow: var(--shadow-lg);
+}
+
+.collision-title {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  margin-bottom: var(--space-md);
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.collision-info {
+  background: var(--bg-secondary);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-lg);
+}
+
+.collision-file {
+  margin-bottom: var(--space-sm);
+  font-size: var(--font-size-sm);
+}
+.collision-file:last-child {
+  margin-bottom: 0;
+}
+
+.collision-label {
+  color: var(--text-muted);
+  display: inline-block;
+  width: 80px;
+}
+
+.collision-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.manual-rename-container {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+.manual-rename-container input {
+  flex: 1;
+}
