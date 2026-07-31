@@ -1,7 +1,12 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { readFile } from '@tauri-apps/plugin-fs';
 import './MediaViewer.css';
 
 interface VideoPlayerProps {
+  /** Either an already-resolved URL (blob:, asset://, http://) or a raw
+   *  file-system path starting with "/".  When a raw path is given the
+   *  component creates a blob: URL internally and revokes it on unmount,
+   *  keeping memory usage bounded to a single video at a time.            */
   src: string;
 }
 
@@ -12,36 +17,85 @@ function formatTime(seconds: number) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+/** Determines if `src` is a raw filesystem path (needs blob conversion). */
+function isFilePath(src: string) {
+  return src.startsWith('/') || src.startsWith('\\');
+}
+
 /**
- * VideoPlayer — mounts a fresh <video> element for each new src via key=
- * so React never reuses a stale element. All state is local to each mount.
+ * Outer shell — re-mounts inner player whenever src changes so we never
+ * reuse a stale <video> element.
  */
-export const VideoPlayer: React.FC<VideoPlayerProps> = ({ src }) => {
-  return <VideoPlayerInner key={src} src={src} />;
-};
+export const VideoPlayer: React.FC<VideoPlayerProps> = ({ src }) => (
+  <VideoPlayerInner key={src} src={src} />
+);
 
 const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ src }) => {
   const videoRef    = useRef<HTMLVideoElement>(null);
+  const [blobUrl,   setBlobUrl]   = useState<string | null>(null);
+  const [isReady,   setIsReady]   = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress,  setProgress]  = useState(0);
   const [duration,  setDuration]  = useState(0);
   const [volume,    setVolume]    = useState(1);
   const [isMuted,   setIsMuted]   = useState(false);
-  const [isReady,   setIsReady]   = useState(false);
   const [errorMsg,  setErrorMsg]  = useState<string | null>(null);
+  const [isLoadingBlob, setIsLoadingBlob] = useState(false);
 
-  // ── Play / Pause ─────────────────────────────────────────────────────────
+  // ── Create blob URL when src is a raw path ───────────────────────────────
+  useEffect(() => {
+    if (!isFilePath(src)) {
+      // Already a playable URL — use directly.
+      setBlobUrl(src);
+      return;
+    }
+
+    let revoked = false;
+    let objectUrl = '';
+    setIsLoadingBlob(true);
+    setErrorMsg(null);
+
+    (async () => {
+      try {
+        const bytes = await readFile(src);
+        if (revoked) return;
+
+        // Detect MIME from extension.
+        const ext = src.split('.').pop()?.toLowerCase() ?? 'mp4';
+        const mime = ext === 'webm' ? 'video/webm'
+                   : ext === 'ogg'  ? 'video/ogg'
+                   : ext === 'mov'  ? 'video/quicktime'
+                   : 'video/mp4';
+
+        const blob = new Blob([bytes as BlobPart], { type: mime });
+        objectUrl = URL.createObjectURL(blob);
+        if (!revoked) {
+          setBlobUrl(objectUrl);
+          setIsLoadingBlob(false);
+        }
+      } catch (e) {
+        if (!revoked) {
+          console.error('[VideoPlayer] readFile failed:', e);
+          setErrorMsg('No se pudo leer el archivo de video');
+          setIsLoadingBlob(false);
+        }
+      }
+    })();
+
+    return () => {
+      revoked = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [src]);
+
+  // ── Controls ──────────────────────────────────────────────────────────────
   const togglePlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid || errorMsg) return;
-    if (vid.paused) {
-      vid.play().catch(e => console.warn('play() rejected:', e));
-    } else {
-      vid.pause();
-    }
+    if (vid.paused) vid.play().catch(() => {});
+    else vid.pause();
   }, [errorMsg]);
 
-  // ── Seek ──────────────────────────────────────────────────────────────────
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = Number(e.target.value);
     if (videoRef.current && isFinite(val)) {
@@ -50,7 +104,6 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ src }) => {
     }
   };
 
-  // ── Volume ────────────────────────────────────────────────────────────────
   const handleVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = Number(e.target.value);
     setVolume(val);
@@ -64,42 +117,35 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ src }) => {
   const toggleMute = () => {
     const vid = videoRef.current;
     if (!vid) return;
-    const next = !isMuted;
-    vid.muted = next;
-    setIsMuted(next);
+    vid.muted = !isMuted;
+    setIsMuted(!isMuted);
   };
 
-  // ── Event handlers ────────────────────────────────────────────────────────
+  // ── Video events ──────────────────────────────────────────────────────────
   const handleCanPlay = () => {
     const vid = videoRef.current;
     if (!vid) return;
     setIsReady(true);
-    if (isFinite(vid.duration) && vid.duration > 0) {
-      setDuration(vid.duration);
-    }
-    vid.play().catch(() => { /* user hasn't interacted yet, that's fine */ });
+    if (isFinite(vid.duration) && vid.duration > 0) setDuration(vid.duration);
+    vid.play().catch(() => {});
   };
 
   const handleDurationChange = () => {
     const vid = videoRef.current;
-    if (vid && isFinite(vid.duration) && vid.duration > 0) {
-      setDuration(vid.duration);
-    }
+    if (vid && isFinite(vid.duration) && vid.duration > 0) setDuration(vid.duration);
   };
 
   const handleError = () => {
     const vid = videoRef.current;
     const code = vid?.error?.code ?? -1;
-    const msg  = vid?.error?.message ?? 'unknown';
-    // MediaError codes: 1=ABORTED 2=NETWORK 3=DECODE 4=SRC_NOT_SUPPORTED
-    const codeNames: Record<number, string> = {
+    const names: Record<number, string> = {
       1: 'MEDIA_ERR_ABORTED',
       2: 'MEDIA_ERR_NETWORK',
       3: 'MEDIA_ERR_DECODE — codec no soportado',
       4: 'MEDIA_ERR_SRC_NOT_SUPPORTED',
     };
-    const label = codeNames[code] ?? `error ${code}`;
-    console.error(`[VideoPlayer] ${label}: ${msg}\nsrc: ${src}`);
+    const label = names[code] ?? `error ${code}`;
+    console.error(`[VideoPlayer] ${label}\nsrc: ${blobUrl ?? src}`);
     setErrorMsg(label);
   };
 
@@ -107,29 +153,28 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ src }) => {
   const sliderMax = isFinite(duration) && duration > 0 ? duration : 0;
   const pct = sliderMax > 0 ? (progress / sliderMax) * 100 : 0;
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  const isBuffering = isLoadingBlob && !errorMsg;
+  const effectiveSrc = blobUrl;   // null while loading
+
   return (
     <div className="video-container" onClick={togglePlay}>
-      {/*
-        src is in JSX (not useEffect) — React sets it before paint.
-        crossOrigin="" is needed by some WebKit builds for asset:// sources.
-        preload="metadata" avoids loading the full file before playback.
-      */}
-      <video
-        ref={videoRef}
-        src={src}
-        className="video-element"
-        playsInline
-        loop
-        preload="metadata"
-        onCanPlay={handleCanPlay}
-        onDurationChange={handleDurationChange}
-        onTimeUpdate={() => videoRef.current && setProgress(videoRef.current.currentTime)}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        onEnded={() => setIsPlaying(false)}
-        onError={handleError}
-      />
+      {effectiveSrc && (
+        <video
+          ref={videoRef}
+          src={effectiveSrc}
+          className="video-element"
+          playsInline
+          loop
+          preload="metadata"
+          onCanPlay={handleCanPlay}
+          onDurationChange={handleDurationChange}
+          onTimeUpdate={() => videoRef.current && setProgress(videoRef.current.currentTime)}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onEnded={() => setIsPlaying(false)}
+          onError={handleError}
+        />
+      )}
 
       {/* Error overlay */}
       {errorMsg && (
@@ -149,7 +194,7 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ src }) => {
         </div>
       )}
 
-      {/* Controls — always visible unless there's an error */}
+      {/* Controls */}
       {!errorMsg && (
         <div className="video-controls glass" onClick={e => e.stopPropagation()}>
           <button className="control-btn" onClick={togglePlay}>
@@ -161,15 +206,15 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ src }) => {
           </span>
 
           <input
-              type="range"
-              className="progress-slider"
-              style={{ '--progress-pct': `${pct}%` } as React.CSSProperties}
-              min={0}
-              max={sliderMax || 100}
-              step={0.1}
-              value={progress}
-              onChange={handleSeek}
-            />
+            type="range"
+            className="progress-slider"
+            style={{ '--progress-pct': `${pct}%` } as React.CSSProperties}
+            min={0}
+            max={sliderMax || 100}
+            step={0.1}
+            value={progress}
+            onChange={handleSeek}
+          />
 
           <div className="volume-container">
             <button className="control-btn" onClick={toggleMute}>
@@ -188,15 +233,15 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ src }) => {
         </div>
       )}
 
-      {/* Big play overlay (paused + ready, no error) */}
+      {/* Big play overlay */}
       {!isPlaying && isReady && !errorMsg && (
         <div className="video-play-overlay">
           <div className="video-play-icon">▶</div>
         </div>
       )}
 
-      {/* Loading spinner */}
-      {!isReady && !errorMsg && (
+      {/* Loading spinner — shown while reading file or waiting for codec */}
+      {(isBuffering || (!isReady && !errorMsg && effectiveSrc)) && (
         <div className="video-loading">
           <div className="media-viewer-spinner" />
         </div>

@@ -3,8 +3,13 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import type { DisplayItem } from '../types';
 
 interface PrefetchedMedia {
-  assetUrls: string[];   // final playable URLs (asset:// for images, blob: for video)
-  blobUrls: string[];    // only the blob: ones, tracked for revocation
+  /**
+   * Final URLs for each file in the item.
+   * - Images/other: `asset://localhost/...` (served by Tauri asset protocol)
+   * - Videos: raw file path (`/home/...`)  — VideoPlayer creates the Blob URL
+   *   lazily and only for the one video currently on screen, avoiding OOM.
+   */
+  assetUrls: string[];
   loaded: boolean;
 }
 
@@ -20,10 +25,11 @@ interface PrefetchState {
   clear: () => void;
 }
 
-const VIDEO_MIME_PREFIXES = ['video/'];
-const IMAGE_EXTENSIONS    = new Set(['jpg','jpeg','png','webp','gif','bmp','svg','avif']);
+const IMAGE_EXTENSIONS = new Set([
+  'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg', 'avif',
+]);
 
-/** Encode each segment of a filesystem path so WebKit accepts the URL */
+/** Encode each segment of a filesystem path so WebKit accepts the URL. */
 function safeAssetUrl(filePath: string): string {
   const raw = convertFileSrc(filePath);
   try {
@@ -36,21 +42,6 @@ function safeAssetUrl(filePath: string): string {
   } catch {
     return raw;
   }
-}
-
-/**
- * Create a blob: URL for a video file.
- *
- * WebKit2GTK delegates media element loading to GStreamer, which does NOT
- * understand the `asset://` custom scheme.  Creating a blob: URL from the
- * raw bytes sidesteps this — GStreamer happily plays blob: sources.
- */
-async function videoBlobUrl(filePath: string, mimeType: string): Promise<string> {
-  // Dynamic import so this doesn't run in tests / SSR
-  const { readFile } = await import('@tauri-apps/plugin-fs');
-  const bytes = await readFile(filePath);
-  const blob = new Blob([bytes as BlobPart], { type: mimeType || 'video/mp4' });
-  return URL.createObjectURL(blob);
 }
 
 export const usePrefetchStore = create<PrefetchState>((set, get) => ({
@@ -68,82 +59,48 @@ export const usePrefetchStore = create<PrefetchState>((set, get) => ({
     set({ isHeavyZone: allHeavy });
 
     const loadCount = allHeavy ? 1 : bufferSize;
-    const endIndex  = Math.min(currentIndex + loadCount, items.length);
+    const endIndex = Math.min(currentIndex + loadCount, items.length);
 
     for (let i = currentIndex; i < endIndex; i++) {
       const item = items[i];
       if (!item || buffer.has(item.id)) continue;
 
-      // Placeholder so duplicate prefetch calls don't double-load
-      const placeholder: PrefetchedMedia = {
-        assetUrls: item.files.map(() => ''),
-        blobUrls:  [],
-        loaded:    false,
-      };
+      // Build URL list synchronously — no async readFile for videos.
+      // Videos get their raw file path so VideoPlayer can create a Blob
+      // on demand for the single video being watched.
+      const assetUrls = item.files.map(f => {
+        const isVideo = f.mime_type.startsWith('video/');
+        if (isVideo) {
+          // Return the raw file path — VideoPlayer handles blob creation.
+          return f.path;
+        }
+
+        const url = safeAssetUrl(f.path);
+
+        // Warm images into the browser cache.
+        const ext = f.extension.toLowerCase();
+        if (IMAGE_EXTENSIONS.has(ext)) {
+          const img = new Image();
+          img.src = url;
+        }
+
+        return url;
+      });
+
       const newBuffer = new Map(get().buffer);
-      newBuffer.set(item.id, placeholder);
+      newBuffer.set(item.id, { assetUrls, loaded: true });
       set({ buffer: newBuffer });
-
-      // Build URLs asynchronously
-      (async () => {
-        const assetUrls: string[] = [];
-        const blobUrls:  string[] = [];
-
-        for (const f of item.files) {
-          const isVideo = VIDEO_MIME_PREFIXES.some(p => f.mime_type.startsWith(p));
-
-          if (isVideo) {
-            try {
-              const burl = await videoBlobUrl(f.path, f.mime_type);
-              assetUrls.push(burl);
-              blobUrls.push(burl);
-            } catch (e) {
-              console.error('[prefetch] blob URL failed for', f.path, e);
-              assetUrls.push(''); // fallback empty
-            }
-          } else {
-            const url = safeAssetUrl(f.path);
-            assetUrls.push(url);
-
-            // Warm image into browser cache
-            const ext = f.extension.split('.')[0].toLowerCase();
-            if (IMAGE_EXTENSIONS.has(ext)) {
-              const img = new Image();
-              img.src = url;
-            }
-          }
-        }
-
-        // Only update if item still in buffer (wasn't evicted)
-        const current = get().buffer;
-        if (current.has(item.id)) {
-          const updated = new Map(current);
-          updated.set(item.id, { assetUrls, blobUrls, loaded: true });
-          set({ buffer: updated });
-        } else {
-          // Evicted while loading — revoke blobs immediately
-          blobUrls.forEach(u => URL.revokeObjectURL(u));
-        }
-      })();
     }
   },
 
-  evictBehind: (currentIndex) => {
-    const KEEP_BEHIND = 2;
-    const evictBefore = currentIndex - KEEP_BEHIND;
-    if (evictBefore <= 0) return;
-
-    // We don't have index→id mapping here, so skip for now
-    // (memory is small — URLs only, blobs auto-revoke on GC)
+  evictBehind: (_currentIndex) => {
+    // No blob URLs to revoke any more — nothing to do here.
   },
 
   getMedia: (itemId) => get().buffer.get(itemId),
 
   clear: () => {
-    // Revoke all blob URLs on clear
-    get().buffer.forEach(media => {
-      media.blobUrls.forEach(u => URL.revokeObjectURL(u));
-    });
+    // No blob URLs to revoke — just clear the map.
     set({ buffer: new Map(), isHeavyZone: false });
   },
 }));

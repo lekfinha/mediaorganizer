@@ -3,6 +3,8 @@ import { useAppStore } from '../../stores/useAppStore';
 import { usePrefetchStore } from '../../stores/usePrefetchStore';
 import { ImageViewer } from './ImageViewer';
 import { VideoPlayer } from './VideoPlayer';
+import { CaptionPanel } from '../CaptionPanel/CaptionPanel';
+import { useCaption } from '../../hooks/useCaption';
 import './MediaViewer.css';
 
 const VIEWABLE_MIME_PREFIXES = ['image/', 'video/'];
@@ -15,6 +17,7 @@ export const MediaViewer: React.FC = () => {
   const currentItem = useAppStore(s => s.getCurrentItem());
   const getMedia = usePrefetchStore(s => s.getMedia);
   const [subIndex, setSubIndex] = useState(0);
+  const { caption, isLoading: captionLoading } = useCaption(currentItem ?? null);
 
   useEffect(() => {
     setSubIndex(0);
@@ -96,6 +99,9 @@ export const MediaViewer: React.FC = () => {
           </div>
         </>
       )}
+
+      {/* Caption panel (Instaloader .txt descriptions) */}
+      <CaptionPanel caption={caption ?? ''} isLoading={captionLoading} />
 
       {/* File type badge */}
       <div className="media-type-badge">

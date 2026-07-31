@@ -31,6 +31,7 @@ pub fn run() {
             commands::prefetch::get_prefetch_info,
             commands::config::load_config,
             commands::config::save_config,
+            commands::caption::read_caption,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
