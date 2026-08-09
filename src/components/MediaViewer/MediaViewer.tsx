@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { usePrefetchStore } from '../../stores/usePrefetchStore';
+import type { FileEntry } from '../../types';
 import { ImageViewer } from './ImageViewer';
 import { VideoPlayer } from './VideoPlayer';
 import { CaptionPanel } from '../CaptionPanel/CaptionPanel';
@@ -15,13 +16,29 @@ function isViewable(mimeType: string): boolean {
 
 export const MediaViewer: React.FC = () => {
   const currentItem = useAppStore(s => s.getCurrentItem());
+  const mode = useAppStore(s => s.mode);
+  const storeCarouselIndex = useAppStore(s => s.carouselIndex);
+  const setCarouselLength = useAppStore(s => s.setCarouselLength);
   const getMedia = usePrefetchStore(s => s.getMedia);
   const [subIndex, setSubIndex] = useState(0);
   const { caption, isLoading: captionLoading } = useCaption(currentItem ?? null);
 
+  // Reset local sub-index when item changes
   useEffect(() => {
     setSubIndex(0);
   }, [currentItem?.id]);
+
+  // Pre-compute viewable files so we can always sync length to the store
+  // (needed for keyboard carousel control in browse mode).
+  const allViewable = (currentItem?.files ?? []).reduce<{ file: FileEntry; originalIndex: number }[]>((acc, f, i) => {
+    if (isViewable(f.mime_type)) acc.push({ file: f, originalIndex: i });
+    return acc;
+  }, []);
+
+  // Keep the store in sync with how many carousel items are visible
+  useEffect(() => {
+    setCarouselLength(allViewable.length);
+  }, [allViewable.length, setCarouselLength]);
 
   if (!currentItem) {
     return (
@@ -34,10 +51,8 @@ export const MediaViewer: React.FC = () => {
 
   const media = getMedia(currentItem.id);
 
-  // Filter to only viewable (image/video) files from this DisplayItem
-  const viewableFiles = currentItem.files
-    .map((f, originalIndex) => ({ file: f, originalIndex }))
-    .filter(({ file }) => isViewable(file.mime_type));
+  // allViewable was computed above (before early returns) — reuse it
+  const viewableFiles = allViewable;
 
   // If no viewable files at all, show a placeholder
   if (viewableFiles.length === 0) {
@@ -50,8 +65,10 @@ export const MediaViewer: React.FC = () => {
     );
   }
 
-  // Clamp subIndex to the viewable array
-  const safeSubIndex = Math.min(subIndex, viewableFiles.length - 1);
+  // In browse mode the keyboard handler drives the carousel via the store;
+  // in other modes use the local subIndex state.
+  const effectiveIndex = mode === 'browse' ? storeCarouselIndex : subIndex;
+  const safeSubIndex = Math.min(effectiveIndex, viewableFiles.length - 1);
   const { file: currentFile, originalIndex } = viewableFiles[safeSubIndex];
 
   // Get asset URL from prefetch buffer (indexed by original file index)
@@ -93,7 +110,7 @@ export const MediaViewer: React.FC = () => {
               <button
                 key={i}
                 className={`media-dot ${i === safeSubIndex ? 'active' : ''}`}
-                onClick={() => setSubIndex(i)}
+                onClick={() => mode === 'browse' ? undefined : setSubIndex(i)}
               />
             ))}
           </div>

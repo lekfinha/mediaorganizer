@@ -18,6 +18,10 @@ interface AppState {
   mode: AppMode;
   currentDir: string;
 
+  // Browse-mode carousel (driven by keyboard handler)
+  carouselIndex: number;
+  carouselLength: number;
+
   // UI State
   isCollisionOverlayOpen: boolean;
   pendingCollision: CollisionInfo[] | null;
@@ -40,6 +44,10 @@ interface AppState {
   toggleSettings: () => void;
   dismissError: () => void;
   getCurrentItem: () => DisplayItem | null;
+  // Browse carousel controls
+  setCarouselLength: (len: number) => void;
+  carouselNext: () => void;
+  carouselPrev: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -49,6 +57,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   processedCount: 0,
   mode: 'binary',
   currentDir: '',
+
+  carouselIndex: 0,
+  carouselLength: 0,
 
   isCollisionOverlayOpen: false,
   pendingCollision: null,
@@ -63,9 +74,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const configStore = useConfigStore.getState();
       const settings = configStore.config.global_settings;
+      const currentMode = get().mode;
 
-      // Restore saved mode for this directory
-      const savedMode = configStore.getSavedMode(path);
+      // In browse mode, stay in browse; otherwise restore the saved mode for this dir
+      const savedMode = currentMode !== 'browse'
+        ? configStore.getSavedMode(path)
+        : null;
 
       set({ loadingMessage: 'Agrupando archivos…' });
       const result = await invoke<ScanResult>('scan_directory', { path, settings });
@@ -74,13 +88,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({
         items: allItems,
         currentIndex: 0,
-        totalCount: result.total_count,   // fixed at scan time
+        totalCount: result.total_count,
         processedCount: 0,
         currentDir: path,
         isLoading: false,
         loadingMessage: '',
-        // Restore mode if saved, otherwise keep current
-        mode: savedMode ?? get().mode,
+        carouselIndex: 0,
+        mode: savedMode ?? currentMode,
       });
 
       // Start prefetching
@@ -95,7 +109,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { currentIndex, items } = get();
     if (currentIndex < items.length - 1) {
       const newIndex = currentIndex + 1;
-      set({ currentIndex: newIndex });
+      set({ currentIndex: newIndex, carouselIndex: 0 });
       usePrefetchStore.getState().prefetchAhead(newIndex, items);
       usePrefetchStore.getState().evictBehind(newIndex);
     }
@@ -104,7 +118,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   goBack: () => {
     const { currentIndex } = get();
     if (currentIndex > 0) {
-      set({ currentIndex: currentIndex - 1 });
+      set({ currentIndex: currentIndex - 1, carouselIndex: 0 });
     }
   },
 
@@ -260,6 +274,22 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleSettings: () => set((s) => ({ isSettingsOpen: !s.isSettingsOpen })),
   dismissError: () => set({ error: null }),
+
+  setCarouselLength: (len) => set({ carouselLength: len }),
+
+  carouselNext: () => {
+    const { carouselIndex, carouselLength } = get();
+    if (carouselLength > 1) {
+      set({ carouselIndex: (carouselIndex + 1) % carouselLength });
+    }
+  },
+
+  carouselPrev: () => {
+    const { carouselIndex, carouselLength } = get();
+    if (carouselLength > 1) {
+      set({ carouselIndex: (carouselIndex - 1 + carouselLength) % carouselLength });
+    }
+  },
 
   getCurrentItem: () => {
     const { items, currentIndex } = get();

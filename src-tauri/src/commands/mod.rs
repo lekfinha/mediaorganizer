@@ -4,3 +4,4 @@ pub mod undo;
 pub mod prefetch;
 pub mod config;
 pub mod caption;
+pub mod browse;

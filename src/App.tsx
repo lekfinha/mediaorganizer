@@ -5,6 +5,7 @@ import { useKeyboardHandler } from './hooks/useKeyboardHandler';
 import { DirectoryPicker } from './components/DirectoryPicker/DirectoryPicker';
 import { MediaViewer } from './components/MediaViewer/MediaViewer';
 import { ShortcutPanel } from './components/ShortcutPanel/ShortcutPanel';
+import { BrowsePanel } from './components/BrowsePanel/BrowsePanel';
 import { ProgressBar } from './components/ProgressBar/ProgressBar';
 import { FileNameEditor } from './components/FileNameEditor/FileNameEditor';
 import { ModeSelector } from './components/ModeSelector/ModeSelector';
@@ -15,6 +16,7 @@ function App() {
   const loadConfig = useConfigStore(s => s.loadConfig);
   const isLoaded = useConfigStore(s => s.isLoaded);
   const currentDir = useAppStore(s => s.currentDir);
+  const mode = useAppStore(s => s.mode);
   const error = useAppStore(s => s.error);
   const dismissError = useAppStore(s => s.dismissError);
 
@@ -37,18 +39,20 @@ function App() {
     return <DirectoryPicker />;
   }
 
+  const isBrowse = mode === 'browse';
+
   return (
     <>
       <div className="app-layout">
         <header className="app-layout-header">
           <ModeSelector />
-          <FileNameEditor />
+          {!isBrowse && <FileNameEditor />}
           <div style={{ width: '120px' }}>{/* Placeholder for balance */}</div>
         </header>
 
         <MediaViewer />
-        <ShortcutPanel />
-        <ProgressBar />
+        {isBrowse ? <BrowsePanel /> : <ShortcutPanel />}
+        {!isBrowse && <ProgressBar />}
       </div>
 
       <CollisionOverlay />

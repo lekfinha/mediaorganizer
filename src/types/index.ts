@@ -94,4 +94,4 @@ export interface PrefetchInfo {
   total_size_bytes: number;
 }
 
-export type AppMode = 'binary' | 'classify';
+export type AppMode = 'binary' | 'classify' | 'browse';

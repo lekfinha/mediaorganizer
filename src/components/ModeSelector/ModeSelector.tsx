@@ -8,17 +8,23 @@ export const ModeSelector: React.FC = () => {
   return (
     <div className="mode-selector" data-mode={mode}>
       <div className="mode-slider" />
-      <button 
+      <button
         className={`mode-btn ${mode === 'binary' ? 'active' : ''}`}
         onClick={() => setMode('binary')}
       >
         ⚖️ Binary
       </button>
-      <button 
+      <button
         className={`mode-btn ${mode === 'classify' ? 'active' : ''}`}
         onClick={() => setMode('classify')}
       >
         🗂️ Classify
+      </button>
+      <button
+        className={`mode-btn ${mode === 'browse' ? 'active' : ''}`}
+        onClick={() => setMode('browse')}
+      >
+        👁 Browse
       </button>
     </div>
   );
