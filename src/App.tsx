@@ -46,7 +46,7 @@ function App() {
       <div className="app-layout">
         <header className="app-layout-header">
           <ModeSelector />
-          {!isBrowse && <FileNameEditor />}
+          <FileNameEditor />
           <div style={{ width: '120px' }}>{/* Placeholder for balance */}</div>
         </header>
 
